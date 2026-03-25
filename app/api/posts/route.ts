@@ -15,12 +15,21 @@ export async function GET(request: Request) {
       statuses: cfg.status,
       platformOptions: [...cfg.platformOptions],
       pillarOptions: [...cfg.pillarOptions],
+      campaignOptions: [...cfg.campaignOptions],
       ui: {
         n8nWebhook: isN8nWebhookConfigured(),
         pillarSelect:
           Boolean(cfg.extraProps.pillar) && cfg.pillarOptions.length > 0,
         showPublishedLink: Boolean(cfg.extraProps.publishedUrl),
         showSyncError: Boolean(cfg.extraProps.lastSyncError),
+        campaignSelect:
+          Boolean(cfg.extraProps.campaign) && cfg.campaignOptions.length > 0,
+        estimatedTraffic: Boolean(cfg.extraProps.estimatedTraffic),
+        actualCost: Boolean(cfg.extraProps.actualCost),
+        businessNote: Boolean(cfg.extraProps.businessNote),
+        performanceNote: Boolean(cfg.extraProps.performanceNote),
+        audienceVerbatim: Boolean(cfg.extraProps.audienceVerbatim),
+        clientProject: Boolean(cfg.extraProps.clientProject),
       },
     });
   } catch (e) {

@@ -9,4 +9,14 @@ export type Post = {
   publishedUrl?: string | null;
   pillar?: string | null;
   lastSyncError?: string | null;
+  /** 活動檔期（Select） */
+  campaign?: string | null;
+  /** 預估導流（Number） */
+  estimatedTraffic?: number | null;
+  /** 實際花費（Number） */
+  actualCost?: number | null;
+  businessNote?: string;
+  performanceNote?: string;
+  audienceVerbatim?: string;
+  clientProject?: string;
 };

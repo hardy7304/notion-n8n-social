@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { getNotionConfig } from "@/lib/notion-config";
 import { notifyN8nAsync } from "@/lib/n8n-webhook";
+import { parseOptionalNumber } from "@/lib/parse-patch-number";
 import { updatePost } from "@/lib/notion-posts";
 
 export async function PATCH(
@@ -25,6 +26,13 @@ export async function PATCH(
       status?: string;
       /** 內容支柱（須與 Notion 與 NOTION_PILLAR_OPTIONS 一致） */
       pillar?: string | null;
+      campaign?: string | null;
+      estimatedTraffic?: number | string | null;
+      actualCost?: number | string | null;
+      businessNote?: string;
+      performanceNote?: string;
+      audienceVerbatim?: string;
+      clientProject?: string;
     };
 
     let status: string;
@@ -44,6 +52,13 @@ export async function PATCH(
       platforms: body.platforms,
       status,
       pillar: body.pillar,
+      campaign: body.campaign,
+      estimatedTraffic: parseOptionalNumber(body.estimatedTraffic),
+      actualCost: parseOptionalNumber(body.actualCost),
+      businessNote: body.businessNote,
+      performanceNote: body.performanceNote,
+      audienceVerbatim: body.audienceVerbatim,
+      clientProject: body.clientProject,
     });
 
     let webhookAction: Parameters<typeof notifyN8nAsync>[0]["action"];

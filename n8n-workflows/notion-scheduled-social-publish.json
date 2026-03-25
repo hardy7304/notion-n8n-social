@@ -1,0 +1,295 @@
+{
+  "name": "Notion Scheduled → FB / IG / Threads 發文",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "11111111-1111-4111-8111-111111111111",
+      "name": "每 5 分鐘",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-1120, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "db",
+              "name": "databaseId",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "pStatus",
+              "name": "propStatus",
+              "value": "Status",
+              "type": "string"
+            },
+            {
+              "id": "pPlatforms",
+              "name": "propPlatforms",
+              "value": "Platforms",
+              "type": "string"
+            },
+            {
+              "id": "pContent",
+              "name": "propContent",
+              "value": "Content",
+              "type": "string"
+            },
+            {
+              "id": "pScheduled",
+              "name": "propScheduled",
+              "value": "Scheduled",
+              "type": "string"
+            },
+            {
+              "id": "pPostId",
+              "name": "propPostId",
+              "value": "Post ID",
+              "type": "string"
+            },
+            {
+              "id": "pPublishedAt",
+              "name": "propPublishedAt",
+              "value": "Published At",
+              "type": "string"
+            },
+            {
+              "id": "vScheduled",
+              "name": "statusScheduled",
+              "value": "Scheduled",
+              "type": "string"
+            },
+            {
+              "id": "vPublished",
+              "name": "statusPublished",
+              "value": "Published",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "22222222-2222-4222-8222-222222222222",
+      "name": "設定（請填 databaseId）",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-880, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.notion.com/v1/databases/{{ $json.databaseId }}/query",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  filter: {\n    property: $json.propStatus,\n    select: { equals: $json.statusScheduled },\n  },\n  sorts: [\n    { property: $json.propScheduled, direction: 'ascending' },\n  ],\n  page_size: 30,\n}) }}",
+        "options": {}
+      },
+      "id": "33333333-3333-4333-8333-333333333333",
+      "name": "Notion 查詢 Scheduled",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-640, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * 取 Status=Scheduled 且 Scheduled<=now 的最舊一筆。\n */\nconst cfg = $('設定（請填 databaseId）').first().json;\nconst res = $input.first().json;\nconst pages = res.results || [];\n\nfunction getRichText(prop) {\n  if (!prop || prop.type !== 'rich_text') return '';\n  return (prop.rich_text || []).map((t) => t.plain_text || '').join('');\n}\nfunction getSelect(prop) {\n  if (!prop || prop.type !== 'select' || !prop.select) return '';\n  return prop.select.name || '';\n}\nfunction getMulti(prop) {\n  if (!prop || prop.type !== 'multi_select') return [];\n  return (prop.multi_select || []).map((x) => x.name);\n}\nfunction getDateStart(prop) {\n  if (!prop || prop.type !== 'date' || !prop.date) return null;\n  return prop.date.start || null;\n}\n\nconst now = Date.now();\nconst candidates = [];\n\nfor (const page of pages) {\n  const p = page.properties || {};\n  const st = getSelect(p[cfg.propStatus]);\n  if (st !== cfg.statusScheduled) continue;\n  const start = getDateStart(p[cfg.propScheduled]);\n  if (!start) continue;\n  const t = new Date(start).getTime();\n  if (Number.isNaN(t) || t > now) continue;\n  candidates.push({ page, t });\n}\n\nif (candidates.length === 0) return [];\n\ncandidates.sort((a, b) => a.t - b.t);\nconst { page } = candidates[0];\nconst pr = page.properties || {};\nconst content = getRichText(pr[cfg.propContent]);\nconst platforms = getMulti(pr[cfg.propPlatforms]);\n\nreturn [\n  {\n    json: {\n      ...cfg,\n      pageId: page.id,\n      notionUrl: page.url,\n      content,\n      platforms,\n    },\n  },\n];\n"
+      },
+      "id": "44444444-4444-4444-8444-444444444444",
+      "name": "選最舊一筆（已到期）",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-400, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has",
+              "leftValue": "={{ $json.pageId }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "55555555-5555-4555-8555-555555555555",
+      "name": "有符合的頁面？",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-160, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * 依序呼叫 Meta Graph（請在 n8n 環境變數設定 Token / ID）。\n * 使用 this.helpers.httpRequest，整段在同一執行內完成，最後只產出一筆給 Notion 更新。\n *\n * 辨識平台（不分大小寫）：facebook/fb、instagram/ig、threads\n * IG/Threads 端點為示意，請依官方文件改為正確兩段式流程。\n */\nreturn (async () => {\nconst item = $input.first().json;\nconst content = String(item.content || '').trim();\nconst pageId = item.pageId;\nconst platforms = Array.isArray(item.platforms) ? item.platforms : [];\n\nconst parts = [];\nconst errors = [];\n\nconst httpRequest = this.helpers.httpRequest.bind(this);\nasync function graphGet(url, qs) {\n  const u = new URL(url);\n  for (const [k, v] of Object.entries(qs || {})) {\n    if (v !== undefined && v !== null && v !== '') u.searchParams.set(k, String(v));\n  }\n  return httpRequest({\n    method: 'GET',\n    url: u.toString(),\n    json: true,\n  });\n}\n\nfor (const raw of platforms) {\n  const plat = String(raw || '').trim();\n  const key = plat.toLowerCase();\n  try {\n    if (key === 'facebook' || key === 'fb') {\n      const pid = process.env.FACEBOOK_PAGE_ID;\n      const tok = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;\n      const r = await graphGet(`https://graph.facebook.com/v21.0/${pid}/feed`, {\n        message: content,\n        access_token: tok,\n      });\n      const id = r.id || r.post_id;\n      parts.push(id ? `FB:${id}` : 'FB:ok');\n    } else if (key === 'instagram' || key === 'ig') {\n      const ig = process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID;\n      const tok = process.env.INSTAGRAM_ACCESS_TOKEN;\n      const img = process.env.INSTAGRAM_PLACEHOLDER_IMAGE_URL || 'https://example.com/placeholder.png';\n      const r = await graphGet(`https://graph.facebook.com/v21.0/${ig}/media`, {\n        image_url: img,\n        caption: content,\n        access_token: tok,\n      });\n      const id = r.id;\n      parts.push(id ? `IG:${id}` : 'IG:ok');\n    } else if (key === 'threads') {\n      const uid = process.env.THREADS_USER_ID;\n      const tok = process.env.THREADS_ACCESS_TOKEN;\n      const r = await graphGet(`https://graph.facebook.com/v21.0/${uid}/threads`, {\n        media_type: 'TEXT',\n        text: content,\n        access_token: tok,\n      });\n      const id = r.id;\n      parts.push(id ? `Threads:${id}` : 'Threads:ok');\n    } else {\n      parts.push(`${plat}:skipped`);\n    }\n  } catch (e) {\n    errors.push(`${plat}:${e.message || e}`);\n  }\n}\n\nconst postIdsLine = [...parts, ...errors.map((e) => `ERR:${e}`)]\n  .join(' | ')\n  .slice(0, 2000);\n\nreturn [\n  {\n    json: {\n      pageId,\n      propStatus: item.propStatus,\n      propPostId: item.propPostId,\n      propPublishedAt: item.propPublishedAt,\n      statusPublished: item.statusPublished,\n      postIdsLine,\n      publishedAtIso: new Date().toISOString(),\n    },\n  },\n];\n})();\n"
+      },
+      "id": "66666666-6666-4666-8666-666666666666",
+      "name": "依序呼叫各平台 Graph",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [120, 220]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.notion.com/v1/pages/{{ $json.pageId }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  properties: {\n    [$json.propStatus]: { select: { name: $json.statusPublished } },\n    [$json.propPostId]: {\n      rich_text: [{ text: { content: String($json.postIdsLine || '') } }],\n    },\n    [$json.propPublishedAt]: {\n      date: { start: $json.publishedAtIso },\n    },\n  },\n}) }}",
+        "options": {}
+      },
+      "id": "77777777-7777-4777-8777-777777777777",
+      "name": "Notion 更新 Published",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [400, 220]
+    },
+    {
+      "parameters": {},
+      "id": "88888888-8888-4888-8888-888888888888",
+      "name": "無待發文",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [120, 420]
+    },
+    {
+      "parameters": {
+        "content": "## 匯入步驟\n1. **設定（請填 databaseId）** → 將 `databaseId` 設為你的 Notion Database ID（可先留空匯入再填）。\n2. **Notion 查詢**、**Notion 更新** 兩節點綁定 **Notion API** Credential（Internal Integration Token）。\n3. 資料庫欄位（英文名）：\n   - **Status** (Select)：`Scheduled` / `Published`\n   - **Platforms** (Multi-select)：例如 `FB`、`IG`、`Threads` 或 `Facebook`、`Instagram`、`Threads`\n   - **Content** (Text)\n   - **Scheduled** (Date，含時間)\n   - **Post ID** (Text)\n   - **Published At** (Date，含時間)\n4. 中文欄位請改「設定」節點內 `propStatus` 等變數（如 `狀態`、`發文平台`…），並讓 Select 選項與網頁 `.env` 一致（例如 已排程/已發佈）。\n5. 在 n8n **Variables / 環境**：`FACEBOOK_PAGE_ID`、`FACEBOOK_PAGE_ACCESS_TOKEN`、`INSTAGRAM_BUSINESS_ACCOUNT_ID`、`INSTAGRAM_ACCESS_TOKEN`、`INSTAGRAM_PLACEHOLDER_IMAGE_URL`、`THREADS_USER_ID`、`THREADS_ACCESS_TOKEN`。\n6. **IG／Threads** 為示意 GET 呼叫；正式環境請依 Meta 文件改 **建立媒體 → 發佈** 與權限。\n7. 若只想在「全部平台成功」才改 Published，請在「依序呼叫」Code 內自行加判斷再連到 Notion。",
+        "height": 580,
+        "width": 460
+      },
+      "id": "99999999-9999-4999-8999-999999999999",
+      "name": "說明",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-1180, -320]
+    }
+  ],
+  "connections": {
+    "每 5 分鐘": {
+      "main": [
+        [
+          {
+            "node": "設定（請填 databaseId）",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "設定（請填 databaseId）": {
+      "main": [
+        [
+          {
+            "node": "Notion 查詢 Scheduled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notion 查詢 Scheduled": {
+      "main": [
+        [
+          {
+            "node": "選最舊一筆（已到期）",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "選最舊一筆（已到期）": {
+      "main": [
+        [
+          {
+            "node": "有符合的頁面？",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "有符合的頁面？": {
+      "main": [
+        [
+          {
+            "node": "依序呼叫各平台 Graph",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "無待發文",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "依序呼叫各平台 Graph": {
+      "main": [
+        [
+          {
+            "node": "Notion 更新 Published",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

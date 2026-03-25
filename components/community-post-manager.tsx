@@ -29,6 +29,13 @@ type UiFeatures = {
   pillarSelect: boolean;
   showPublishedLink: boolean;
   showSyncError: boolean;
+  campaignSelect: boolean;
+  estimatedTraffic: boolean;
+  actualCost: boolean;
+  businessNote: boolean;
+  performanceNote: boolean;
+  audienceVerbatim: boolean;
+  clientProject: boolean;
 };
 
 const DEFAULT_STATUSES = {
@@ -87,11 +94,31 @@ export function CommunityPostManager() {
   const [pillarOptionsList, setPillarOptionsList] = React.useState<string[]>(
     [],
   );
+  const [campaignOptionsList, setCampaignOptionsList] = React.useState<
+    string[]
+  >([]);
+  const [editorCampaign, setEditorCampaign] = React.useState("");
+  const [editorEstimatedTraffic, setEditorEstimatedTraffic] =
+    React.useState("");
+  const [editorActualCost, setEditorActualCost] = React.useState("");
+  const [editorBusinessNote, setEditorBusinessNote] = React.useState("");
+  const [editorPerformanceNote, setEditorPerformanceNote] =
+    React.useState("");
+  const [editorAudienceVerbatim, setEditorAudienceVerbatim] =
+    React.useState("");
+  const [editorClientProject, setEditorClientProject] = React.useState("");
   const [uiFeatures, setUiFeatures] = React.useState<UiFeatures>({
     n8nWebhook: false,
     pillarSelect: false,
     showPublishedLink: false,
     showSyncError: false,
+    campaignSelect: false,
+    estimatedTraffic: false,
+    actualCost: false,
+    businessNote: false,
+    performanceNote: false,
+    audienceVerbatim: false,
+    clientProject: false,
   });
   const [saving, setSaving] = React.useState(false);
   const firstStatusSync = React.useRef(true);
@@ -109,6 +136,7 @@ export function CommunityPostManager() {
         statuses?: typeof DEFAULT_STATUSES;
         platformOptions?: string[];
         pillarOptions?: string[];
+        campaignOptions?: string[];
         ui?: Partial<UiFeatures>;
         error?: string;
       };
@@ -133,6 +161,9 @@ export function CommunityPostManager() {
       if (data.pillarOptions) {
         setPillarOptionsList(data.pillarOptions);
       }
+      if (data.campaignOptions) {
+        setCampaignOptionsList(data.campaignOptions);
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "讀取失敗");
       setPosts([]);
@@ -152,6 +183,13 @@ export function CommunityPostManager() {
       setEditorScheduled("");
       setEditorPlatforms(new Set());
       setEditorPillar("");
+      setEditorCampaign("");
+      setEditorEstimatedTraffic("");
+      setEditorActualCost("");
+      setEditorBusinessNote("");
+      setEditorPerformanceNote("");
+      setEditorAudienceVerbatim("");
+      setEditorClientProject("");
       return;
     }
     setEditorTitle(selected.title);
@@ -159,6 +197,17 @@ export function CommunityPostManager() {
     setEditorScheduled(toDatetimeLocalValue(selected.scheduledAt));
     setEditorPlatforms(new Set(selected.platforms));
     setEditorPillar(selected.pillar ?? "");
+    setEditorCampaign(selected.campaign ?? "");
+    setEditorEstimatedTraffic(
+      selected.estimatedTraffic != null ? String(selected.estimatedTraffic) : "",
+    );
+    setEditorActualCost(
+      selected.actualCost != null ? String(selected.actualCost) : "",
+    );
+    setEditorBusinessNote(selected.businessNote ?? "");
+    setEditorPerformanceNote(selected.performanceNote ?? "");
+    setEditorAudienceVerbatim(selected.audienceVerbatim ?? "");
+    setEditorClientProject(selected.clientProject ?? "");
   }, [selected]);
 
   const buildPatchBody = (extra: Record<string, unknown>) => {
@@ -166,7 +215,46 @@ export function CommunityPostManager() {
     if (uiFeatures.pillarSelect) {
       body.pillar = editorPillar.trim() ? editorPillar.trim() : null;
     }
+    if (uiFeatures.campaignSelect) {
+      body.campaign = editorCampaign.trim() ? editorCampaign.trim() : null;
+    }
+    if (uiFeatures.estimatedTraffic) {
+      const t = editorEstimatedTraffic.trim();
+      body.estimatedTraffic = t === "" ? null : Number(t);
+    }
+    if (uiFeatures.actualCost) {
+      const t = editorActualCost.trim();
+      body.actualCost = t === "" ? null : Number(t);
+    }
+    if (uiFeatures.businessNote) {
+      body.businessNote = editorBusinessNote;
+    }
+    if (uiFeatures.performanceNote) {
+      body.performanceNote = editorPerformanceNote;
+    }
+    if (uiFeatures.audienceVerbatim) {
+      body.audienceVerbatim = editorAudienceVerbatim;
+    }
+    if (uiFeatures.clientProject) {
+      body.clientProject = editorClientProject;
+    }
     return body;
+  };
+
+  const validateNumbers = (): boolean => {
+    if (uiFeatures.estimatedTraffic && editorEstimatedTraffic.trim()) {
+      if (Number.isNaN(Number(editorEstimatedTraffic.trim()))) {
+        toast.error("預估導流請填數字");
+        return false;
+      }
+    }
+    if (uiFeatures.actualCost && editorActualCost.trim()) {
+      if (Number.isNaN(Number(editorActualCost.trim()))) {
+        toast.error("實際花費請填數字");
+        return false;
+      }
+    }
+    return true;
   };
 
   const patchPost = async (body: Record<string, unknown>) => {
@@ -202,6 +290,7 @@ export function CommunityPostManager() {
       toast.error("請先選擇一篇文章");
       return;
     }
+    if (!validateNumbers()) return;
     const scheduledIso = fromDatetimeLocalValue(editorScheduled);
     void patchPost(
       buildPatchBody({
@@ -219,6 +308,7 @@ export function CommunityPostManager() {
       toast.error("請先選擇一篇文章");
       return;
     }
+    if (!validateNumbers()) return;
     void patchPost(
       buildPatchBody({
         content: editorContent,
@@ -234,6 +324,7 @@ export function CommunityPostManager() {
       toast.error("請先選擇一篇文章");
       return;
     }
+    if (!validateNumbers()) return;
     void patchPost(
       buildPatchBody({
         content: editorContent,
@@ -390,6 +481,11 @@ export function CommunityPostManager() {
                           {p.pillar}
                         </Badge>
                       ) : null}
+                      {p.campaign ? (
+                        <Badge variant="outline" className="text-[10px] font-normal">
+                          {p.campaign}
+                        </Badge>
+                      ) : null}
                     </div>
                   </button>
                 </li>
@@ -472,6 +568,141 @@ export function CommunityPostManager() {
                     <span className="text-xs">（請設定 NOTION_PILLAR_OPTIONS 以在此編輯）</span>
                   </div>
                 ) : null}
+
+                {(uiFeatures.campaignSelect ||
+                  uiFeatures.estimatedTraffic ||
+                  uiFeatures.actualCost ||
+                  uiFeatures.businessNote) && (
+                  <>
+                    <Separator />
+                    <p className="text-sm font-medium text-foreground">
+                      營運與財務
+                    </p>
+                  </>
+                )}
+                {uiFeatures.campaignSelect ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="campaign">活動檔期</Label>
+                    <Select
+                      value={editorCampaign || "__unset__"}
+                      onValueChange={(v) => {
+                        if (v != null) {
+                          setEditorCampaign(v === "__unset__" ? "" : v);
+                        }
+                      }}
+                    >
+                      <SelectTrigger id="campaign" className="w-full max-w-sm">
+                        <SelectValue placeholder="選擇檔期" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__unset__">未設定</SelectItem>
+                        {campaignOptionsList.map((name) => (
+                          <SelectItem key={name} value={name}>
+                            {name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : selected.campaign ? (
+                  <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                    <span className="font-medium text-foreground">活動檔期</span>
+                    <Badge variant="secondary">{selected.campaign}</Badge>
+                    <span className="text-xs">
+                      （請設定 NOTION_CAMPAIGN_OPTIONS 以在此編輯）
+                    </span>
+                  </div>
+                ) : null}
+                {uiFeatures.estimatedTraffic ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="est-traffic">預估導流</Label>
+                    <Input
+                      id="est-traffic"
+                      type="number"
+                      inputMode="numeric"
+                      placeholder="例如點擊、造訪次數目標"
+                      value={editorEstimatedTraffic}
+                      onChange={(e) => setEditorEstimatedTraffic(e.target.value)}
+                      className="max-w-sm"
+                    />
+                  </div>
+                ) : null}
+                {uiFeatures.actualCost ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="actual-cost">實際花費</Label>
+                    <Input
+                      id="actual-cost"
+                      type="number"
+                      inputMode="decimal"
+                      placeholder="素材、廣告等（與 Notion 數字格式一致）"
+                      value={editorActualCost}
+                      onChange={(e) => setEditorActualCost(e.target.value)}
+                      className="max-w-sm"
+                    />
+                  </div>
+                ) : null}
+                {uiFeatures.businessNote ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="biz-note">商務備註</Label>
+                    <Textarea
+                      id="biz-note"
+                      value={editorBusinessNote}
+                      onChange={(e) => setEditorBusinessNote(e.target.value)}
+                      placeholder="報價代號、客戶注意事項…"
+                      className="min-h-[72px] resize-y"
+                    />
+                  </div>
+                ) : null}
+
+                {(uiFeatures.performanceNote ||
+                  uiFeatures.audienceVerbatim ||
+                  uiFeatures.clientProject) && (
+                  <>
+                    <Separator />
+                    <p className="text-sm font-medium text-foreground">
+                      回饋與專案
+                    </p>
+                  </>
+                )}
+                {uiFeatures.performanceNote ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="perf-note">成效備註</Label>
+                    <Textarea
+                      id="perf-note"
+                      value={editorPerformanceNote}
+                      onChange={(e) => setEditorPerformanceNote(e.target.value)}
+                      placeholder="哪則表現好、A/B 結論…"
+                      className="min-h-[72px] resize-y"
+                    />
+                  </div>
+                ) : null}
+                {uiFeatures.audienceVerbatim ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="verbatim">觀眾原話</Label>
+                    <Textarea
+                      id="verbatim"
+                      value={editorAudienceVerbatim}
+                      onChange={(e) =>
+                        setEditorAudienceVerbatim(e.target.value)
+                      }
+                      placeholder="留言、私訊摘錄…"
+                      className="min-h-[96px] resize-y"
+                    />
+                  </div>
+                ) : null}
+                {uiFeatures.clientProject ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="client-proj">客戶／專案</Label>
+                    <Input
+                      id="client-proj"
+                      value={editorClientProject}
+                      onChange={(e) => setEditorClientProject(e.target.value)}
+                      placeholder="客戶名稱或專案代號"
+                      className="max-w-lg"
+                    />
+                  </div>
+                ) : null}
+
                 <div className="space-y-2">
                   <Label htmlFor="content">內文</Label>
                   <Textarea

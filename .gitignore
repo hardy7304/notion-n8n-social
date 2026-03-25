@@ -37,6 +37,13 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
+# Notion API / Integration 密鑰（勿提交）
+.env.notion
+.env.notion.local
+.notion.env
+notion-secrets.json
+**/notion-credentials.json
+
 # vercel
 .vercel
 

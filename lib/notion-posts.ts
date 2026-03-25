@@ -97,6 +97,20 @@ function selectNameFromPage(
   return prop.select.name;
 }
 
+function numberFromPage(
+  page: PageObjectResponse,
+  propName: string,
+): number | null {
+  const prop = page.properties[propName];
+  if (!prop || prop.type !== "number") {
+    return null;
+  }
+  if (prop.number === null || prop.number === undefined) {
+    return null;
+  }
+  return prop.number;
+}
+
 export function mapPageToPost(
   page: PageObjectResponse,
   cfg: NotionConfig,
@@ -118,6 +132,36 @@ export function mapPageToPost(
   }
   if (cfg.extraProps.lastSyncError) {
     base.lastSyncError = contentFromPage(page, cfg.extraProps.lastSyncError);
+  }
+  if (cfg.extraProps.campaign) {
+    base.campaign = selectNameFromPage(page, cfg.extraProps.campaign);
+  }
+  if (cfg.extraProps.estimatedTraffic) {
+    base.estimatedTraffic = numberFromPage(
+      page,
+      cfg.extraProps.estimatedTraffic,
+    );
+  }
+  if (cfg.extraProps.actualCost) {
+    base.actualCost = numberFromPage(page, cfg.extraProps.actualCost);
+  }
+  if (cfg.extraProps.businessNote) {
+    base.businessNote = contentFromPage(page, cfg.extraProps.businessNote);
+  }
+  if (cfg.extraProps.performanceNote) {
+    base.performanceNote = contentFromPage(
+      page,
+      cfg.extraProps.performanceNote,
+    );
+  }
+  if (cfg.extraProps.audienceVerbatim) {
+    base.audienceVerbatim = contentFromPage(
+      page,
+      cfg.extraProps.audienceVerbatim,
+    );
+  }
+  if (cfg.extraProps.clientProject) {
+    base.clientProject = contentFromPage(page, cfg.extraProps.clientProject);
   }
 
   return base;
@@ -193,6 +237,13 @@ export type UpdatePostInput = {
   status?: string;
   /** 內容支柱（須與 Notion Select 選項一致） */
   pillar?: string | null;
+  campaign?: string | null;
+  estimatedTraffic?: number | null;
+  actualCost?: number | null;
+  businessNote?: string;
+  performanceNote?: string;
+  audienceVerbatim?: string;
+  clientProject?: string;
 };
 
 export async function updatePost(
@@ -232,6 +283,46 @@ export async function updatePost(
     properties[cfg.extraProps.pillar] = input.pillar
       ? { select: { name: input.pillar } }
       : { select: null };
+  }
+
+  if (input.campaign !== undefined && cfg.extraProps.campaign) {
+    properties[cfg.extraProps.campaign] = input.campaign
+      ? { select: { name: input.campaign } }
+      : { select: null };
+  }
+
+  if (input.estimatedTraffic !== undefined && cfg.extraProps.estimatedTraffic) {
+    properties[cfg.extraProps.estimatedTraffic] = {
+      number: input.estimatedTraffic,
+    };
+  }
+
+  if (input.actualCost !== undefined && cfg.extraProps.actualCost) {
+    properties[cfg.extraProps.actualCost] = {
+      number: input.actualCost,
+    };
+  }
+
+  const rich = (text: string) => ({
+    rich_text: text ? [{ text: { content: text } }] : [],
+  });
+
+  if (input.businessNote !== undefined && cfg.extraProps.businessNote) {
+    properties[cfg.extraProps.businessNote] = rich(input.businessNote);
+  }
+  if (input.performanceNote !== undefined && cfg.extraProps.performanceNote) {
+    properties[cfg.extraProps.performanceNote] = rich(input.performanceNote);
+  }
+  if (
+    input.audienceVerbatim !== undefined &&
+    cfg.extraProps.audienceVerbatim
+  ) {
+    properties[cfg.extraProps.audienceVerbatim] = rich(
+      input.audienceVerbatim,
+    );
+  }
+  if (input.clientProject !== undefined && cfg.extraProps.clientProject) {
+    properties[cfg.extraProps.clientProject] = rich(input.clientProject);
   }
 
   const updated = await notion.pages.update({
